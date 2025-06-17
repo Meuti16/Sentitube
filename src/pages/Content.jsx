@@ -1,3 +1,4 @@
+// src/pages/Content.jsx
 import React, { useState, useEffect } from "react";
 import Header from "../component/Header";
 import Main from "../component/Main";
@@ -5,12 +6,12 @@ import { useNavigate } from "react-router-dom";
 
 export default function Content() {
   const [onMenu, setOnMenu] = useState(true);
-  const [resultLocal, setResultLocal] = useState([]);
-  const [resultById, setResultById] = useState([]);
-  const [resultSource, setResultSource] = useState("local"); // "local" or "byId"
-  const [videoResults, setVideoResults] = useState([]);
+  const [searchVideoResults, setSearchVideoResults] = useState([]); // Daftar video hasil pencarian
+
+  const [analysisLinkResult, setAnalysisLinkResult] = useState(null); // Hasil analisis dari tab Analisis
+  const [homeVideoAnalysisResult, setHomeVideoAnalysisResult] = useState(null); // Hasil analisis dari tab Home
+
   const navigate = useNavigate();
-const [activeMenu, setActiveMenu] = useState("Home");
 
   useEffect(() => {
     const username = localStorage.getItem("username");
@@ -19,101 +20,84 @@ const [activeMenu, setActiveMenu] = useState("Home");
     }
   }, [navigate]);
 
-  // Fungsi postLink (dari input manual)
+  // Fungsi postLink (untuk analisis link di tab Analisis)
   const postLink = async (data) => {
     try {
-      const response = await fetch(
-        "https://7740-157-10-185-252.ngrok-free.app/scrape_comments",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        }
-      );
-
-      const resultData = await response.json(); // Ambil response sebagai JSON
-      setResultLocal(resultData.comments); // Simpan komentar di resultLocal
-      setResultSource("local"); // Tandai sumber data
-
-      // Ambil ID dari URL dan simpan juga ke resultById agar keduanya bisa dipakai
-      const videoUrl = data.video_url;
-      const videoIdMatch = videoUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-      const videoId = videoIdMatch ? videoIdMatch[1] : null;
-
-      if (videoId) {
-        setResultById((prev) => ({
-          ...prev,
-          [videoId]: resultData.comments,
-        }));
-      }
-      const previousHistory = JSON.parse(localStorage.getItem("history")) || [];
-      const newEntry = {
-        video_url: data.video_url,
-        timestamp: new Date().toISOString(),
-        summary: resultData.summary || "Hasil ringkasan tidak tersedia", // optional
-      };
-      const updatedHistory = [newEntry, ...previousHistory];
-      localStorage.setItem("history", JSON.stringify(updatedHistory));
+      const response = await fetch('/api/scrape_comments', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      // --- KEMBALI KE response.json() LANGSUNG ---
+      const resultData = await response.json(); 
+      // --- AKHIR KEMBALI ---
+      setAnalysisLinkResult(resultData.comments);
+      setHomeVideoAnalysisResult(null); 
+      console.log("postLink success, data:", resultData.comments);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error postLink:", error); // Ini akan menangkap SyntaxError jika bukan JSON
+      setAnalysisLinkResult(null);
     }
   };
 
-  // Fungsi getResultById (berdasarkan video ID)
-  const getResultById = async (id) => {
+  // Fungsi getResultById (untuk analisis video dari daftar di tab Home)
+  const getResultById = async (video_id) => { 
     try {
-      const response = await fetch(
-        `https://f8c4-157-10-185-252.ngrok-free.app/scrape_comments/result/${id}`
-      );
+      const youtubeUrl = `https://www.youtube.com/watch?v=${video_id}`;
+      
+      console.log(`Analyzing video ID: ${video_id} with URL: ${youtubeUrl}`);
+      
+      const response = await fetch('/api/scrape_comments', { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ video_url: youtubeUrl }),
+      });
+
+      // --- KEMBALI KE response.json() LANGSUNG ---
       const data = await response.json();
-      setResultById((prev) => ({
-        ...prev,
-        [id]: data.comments,
-      }));
-      setResultSource("byId"); // Tandai bahwa sekarang pakai data byId
+      // --- AKHIR KEMBALI ---
+      setHomeVideoAnalysisResult(data.comments);
+      setAnalysisLinkResult(null);
+      console.log("getResultById (now scrape_comments) success for ID:", video_id, "Data:", data.comments);
     } catch (error) {
-      console.error("Gagal ambil berdasarkan ID:", error);
+      console.error("Error getResultById (now scrape_comments):", error); // Ini akan menangkap SyntaxError jika bukan JSON
+      setHomeVideoAnalysisResult(null);
     }
   };
 
-  // Fungsi pencarian video
+  // Fungsi handleSearchVideo (untuk pencarian video di tab Home)
   const handleSearchVideo = async (searchQuery) => {
     try {
-      const response = await fetch(
-        "https://7740-157-10-185-252.ngrok-free.app/search_videos",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ query: searchQuery }),
-        }
-      );
+      console.log("Searching for:", searchQuery);
+      const response = await fetch('/api/search_videos', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: searchQuery }),
+      });
+      // --- KEMBALI KE response.json() LANGSUNG ---
       const data = await response.json();
-      setVideoResults(data);
+      // --- AKHIR KEMBALI ---
+      setSearchVideoResults(data);
+      setHomeVideoAnalysisResult(null);
+      setAnalysisLinkResult(null);
+      console.log("Search results:", data);
     } catch (error) {
-      console.error("Search error:", error);
+      console.error("Error handleSearchVideo:", error); // Ini akan menangkap SyntaxError jika bukan JSON
+      setSearchVideoResults([]);
     }
   };
-
-  // Tentukan hasil analisis yang dikirim berdasarkan sumber
-  const selectedResult =
-    resultSource === "byId"
-      ? Object.values(resultById).flat()
-      : resultLocal;
 
   return (
     <>
-      <Header onMenu={onMenu} setOnMenu={setOnMenu} setActiveMenu={setActiveMenu} />
+      <Header onMenu={onMenu} setOnMenu={setOnMenu} />
       <Main
         onMenu={onMenu}
-        postLink={postLink}
-        ResultAnalysis={selectedResult}
-        getResultById={getResultById}
+        postLink={postLink} 
+        getResultById={getResultById} 
         searchVideo={handleSearchVideo}
-        videoResults={videoResults}activeMenu={activeMenu}
+        videoResults={searchVideoResults}
+        homeVideoAnalysisResult={homeVideoAnalysisResult}
+        analysisLinkResult={analysisLinkResult}
       />
     </>
   );

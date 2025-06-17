@@ -1,3 +1,4 @@
+// src/component/Main.jsx
 import Nav from "./Nav";
 import { useState } from "react";
 import Home from "./Home";
@@ -7,10 +8,11 @@ import PdfExport from "./PdfExport";
 export default function Main({
   onMenu,
   postLink,
-  ResultAnalysis,
   searchVideo,
-  videoResults,
   getResultById,
+  videoResults,
+  homeVideoAnalysisResult, // Hasil analisis untuk Home
+  analysisLinkResult // Hasil analisis untuk Analysis
 }) {
   const [activeMenu, setActiveMenu] = useState("Home");
 
@@ -28,10 +30,18 @@ export default function Main({
 
       <div className="right">
         {activeMenu === "Home" && (
-          <Home searchVideo={searchVideo} videoResults={videoResults}  postLink={postLink} ResultAnalysis={ResultAnalysis} getResultById={getResultById} />
+          <Home
+            searchVideo={searchVideo}
+            videoResults={videoResults}
+            getResultById={getResultById}
+            homeVideoAnalysisResult={homeVideoAnalysisResult} // Teruskan hasil analisis ke Home
+          />
         )}
         {activeMenu === "Analysis" && (
-          <Analysis postLink={postLink} ResultAnalysis={ResultAnalysis} />
+          <Analysis
+            postLink={postLink}
+            analysisLinkResult={analysisLinkResult} // Teruskan hasil analisis ke Analysis
+          />
         )}
         {/* {activeMenu === "Trend" && <Trend />} */}
         {activeMenu === "History" && <History />}
